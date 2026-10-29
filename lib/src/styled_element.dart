@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/src/css_parser.dart';
 import 'package:flutter_html/style.dart';
 import 'package:html/dom.dart' as dom;
-//TODO(Sub6Resources): don't use the internal code of the html package as it may change unexpectedly.
 //ignore: implementation_imports
 import 'package:html/src/query_selector.dart';
+import 'package:csslib/parser.dart' show Message, parseSelectorGroup;
+import 'package:csslib/visitor.dart' show SelectorGroup;
 
 /// A [StyledElement] applies a style to all of its children.
 class StyledElement {
@@ -25,7 +26,9 @@ class StyledElement {
   }) : _node = node;
 
   bool matchesSelector(String selector) =>
-      (_node != null && matches(_node!, selector)) || name == selector;
+      (_node != null &&
+          SelectorEvaluator().matches(_node!, _parseSelectorList(selector))) ||
+      name == selector;
 
   Map<String, String> get attributes =>
       _node?.attributes.map((key, value) {
@@ -416,4 +419,15 @@ FontSize numberToFontSize(String num) {
     return numberToFontSize((3 - relativeNum).toString());
   }
   return FontSize.medium;
+}
+
+// html 0.15.7 removed the top-level `matches()`; this mirrors its former
+// private selector parsing (same FormatException on invalid selectors).
+SelectorGroup _parseSelectorList(String selector) {
+  final errors = <Message>[];
+  final group = parseSelectorGroup(selector, errors: errors);
+  if (group == null || errors.isNotEmpty) {
+    throw FormatException("'$selector' is not a valid selector: $errors");
+  }
+  return group;
 }
